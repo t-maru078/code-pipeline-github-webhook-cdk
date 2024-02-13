@@ -5,6 +5,7 @@
 CDK にて AWS リソースの定義をしています。
 
 GitHub への CI/CD 結果の送信方法が若干異なりますが、CloudFormation にて同様の内容を実施しているサンプルは下記です。
+
 https://github.com/t-maru078/code-pipeline-github-webhook
 
 このサンプルでは GitHub リポジトリの main, develop ブランチ及び tag 以外の Push, Pull Request をトリガーとして CodePipeline のワークフローが起動されます。
@@ -89,13 +90,12 @@ Pipeline のワークフローは CodeBuild で実行される Unit test (Unit t
 
    | Parameter name              | Description                                                                                      | Required |
    | --------------------------- | ------------------------------------------------------------------------------------------------ | -------- |
-   | GITHUB_OWNER_NAME           | GitHub の user name または Organization name                                                     | Yes      |
-   | GITHUB_REPOSITORY_NAME      | Pipeline のワークフローを実行するソースとなる GitHub リポジトリ名                                | Yes      |
-   | GITHUB_APP_INFO_SECRET_NAME | Secrets Manager に登録した Secret 名                                                             | Yes      |
+   | GITHUB_OWNER                | GitHub の user name または Organization name                                                     | Yes      |
+   | GITHUB_REPO                 | Pipeline のワークフローを実行するソースとなる GitHub リポジトリ名                                | Yes      |
    | GITHUB_APP_ID               | 作成した GitHub App の設定ページに表示されている                                                 | Yes      |
    | GITHUB_APP_INSTALLATION_ID  | 前述の手順にて入手した installation id                                                           | Yes      |
+   | GITHUB_APP_INFO_SECRET_NAME | Secrets Manager に登録した Private key 情報の Secret 名                                          | Yes      |
    | AWS_PROFILE                 | AWS CLI 実行時に使用する AWS の Profile。<br />指定しない場合は default profile が使用されます。 | No       |
-
 
 上記の手順が完了後、この README と同じディレクトリ階層で下記コマンドを実行することで必要な環境が AWS 上にデプロイされます。
 
@@ -105,13 +105,10 @@ bash scripts/deploy-pipeline.sh
 
 ## 注意事項
 
-- このサンプルでは Lambda Function を定義するために `aws-cdk-lib/aws-lambda-nodejs` モジュールの `NodejsFunction` を使用しているため、cdk synth 及び deploy をする環境で Docker が使用できないとエラーになりますのでご注意ください
+- このサンプルでは Lambda Function を定義するために `aws-cdk-lib/aws-lambda-nodejs` モジュールの `NodejsFunction` を使用しているため、cdk synth 及び deploy を実行する環境で Docker が使用できないとエラーになりますのでご注意ください
 
 - CloudFormation stack の削除時に不要な S3 リソースが残らないように DeletionPolicy は設定しておりません。Pipeline 実行後は S3 内部にファイルが作成されておりますので stack の削除時に DELETE_FAILED 状態になりますが S3 内部のファイルを削除 (Object のすべての version を削除) してから再度 stack の削除を実行すると正常に削除されます。
 
 - GitHub 上でこの Pipeline の結果が表示されるようになりますが、表示内容は必要最低限のものしか設定しておりませんのでご注意ください。実際の開発で使用する場合は GitHub Checks API に送信している内容をカスタマイズする必要があります。
 
 - 今回の要件では Lambda で構築した GitHub App は AWS 上のリソースからのみ使用するため Lambda Function URL の auth type を AWS_IAM で設定しました。GitHub からの Webhook を GitHub App で受け取る場合などはこのまま使用できませんのでご注意ください。
-
-test cont
-test cont
