@@ -1,0 +1,81 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+    commands:
+      - echo Install started on `date`
+    finally:
+      - echo Install finished on `date`
+  pre_build:
+    commands:
+      - echo Pre Build started on `date`
+    finally:
+      - echo Pre Build finished on `date`
+  build:
+    commands:
+      - echo Build started on `date`
+      - BRANCH_NAME=$(git describe --contains --all HEAD)
+      - COMMIT_HASH=$(git rev-parse HEAD)
+      - COMMIT_MESSAGE=$(git log -1 --pretty='%s')
+      - |
+        echo "\n\n**********************************************\n Trigger Information \n**********************************************\n"
+        echo "ACCOUNT ID: ${CODEBUILD_WEBHOOK_ACTOR_ACCOUNT_ID}"
+        echo "BASE REF: ${CODEBUILD_WEBHOOK_BASE_REF}"
+        echo "WEBHOOK_EVENT: ${CODEBUILD_WEBHOOK_EVENT}"
+        echo "PREV_COMMIT: ${CODEBUILD_WEBHOOK_PREV_COMMIT}"
+        echo "COMMIT_HASH: ${COMMIT_HASH}"
+        echo "COMMIT_MESSAGE: ${COMMIT_MESSAGE}"
+        echo "HEAD_REF: ${CODEBUILD_WEBHOOK_HEAD_REF}"
+        echo "TRIGGER: ${CODEBUILD_WEBHOOK_TRIGGER}"
+        echo "GITHUB_APP_FUNCTION_URL: ${GITHUB_APP_FUNCTION_URL}"
+        echo "GITHUB_REPO: ${GITHUB_REPO}"
+        echo "GITHUB_OWNER: ${GITHUB_OWNER}"
+        echo "GITHUB_APP_INSTALLATION_ID: ${GITHUB_APP_INSTALLATION_ID}"
+        echo "CODEBUILD_BUILD_ID: ${CODEBUILD_BUILD_ID}"
+        echo "AWS_REGION: ${AWS_REGION}"
+        echo "\n\n**********************************************\n Configuration Information \n**********************************************\n"
+        echo "Bucket Name for dev pipeline: ${SOURCE_CODE_STORE_BUCKET_NAME}"
+        echo "Table Name for managing pipeline status: ${BUILD_HISTORY_TABLE_NAME}"
+      - |
+        cat << EOS | jq . > build-info.json
+        {
+          "TriggerInfo": {
+            "AccountID": "${CODEBUILD_WEBHOOK_ACTOR_ACCOUNT_ID}",
+            "BaseRef": "${CODEBUILD_WEBHOOK_BASE_REF}",
+            "WebhookEvent": "${CODEBUILD_WEBHOOK_EVENT}",
+            "PrevCommit": "${CODEBUILD_WEBHOOK_PREV_COMMIT}",
+            "CommitHash": "${COMMIT_HASH}",
+            "CommitMessage": "${COMMIT_MESSAGE}",
+            "HeadRef": "${CODEBUILD_WEBHOOK_HEAD_REF}",
+            "Trigger": "${CODEBUILD_WEBHOOK_TRIGGER}"
+          },
+          "BuildInfo": {
+            "CodebuildBuildARN": "${CODEBUILD_BUILD_ARN}",
+            "CodebuildBuildID": "${CODEBUILD_BUILD_ID}",
+            "CodebuildBuildNumber": "${CODEBUILD_BUILD_NUMBER}"
+          }
+        }
+        EOS
+      - CRED=$(curl 169.254.170.2${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI})
+      - ACCESS_KEY=$(echo ${CRED} | jq -r .AccessKeyId)
+      - SECRET_ACCESS_KEY=$(echo ${CRED} | jq -r .SecretAccessKey)
+      - SESSION_TOKEN=$(echo ${CRED} | jq -r .Token)
+      - |
+        curl -vf "${GITHUB_APP_FUNCTION_URL}" \
+          -H "content-type: application/json" \
+          -H "X-Amz-Security-Token: ${SESSION_TOKEN}" \
+          --aws-sigv4 "aws:amz:${AWS_REGION}:lambda" \
+          --user "${ACCESS_KEY}:${SECRET_ACCESS_KEY}" \
+          -d "{ \"buildId\": \"${CODEBUILD_BUILD_ID}\", \"headSha\": \"${COMMIT_HASH}\", \"repo\": \"${GITHUB_REPO}\", \"owner\": \"${GITHUB_OWNER}\", \"branchName\": \"${BRANCH_NAME}\", \"status\": \"QUEUED\", \"installationId\": ${GITHUB_APP_INSTALLATION_ID} }"
+      - zip -r latest.zip . -x .git/\*
+      - aws s3 cp ./latest.zip s3://${SOURCE_CODE_STORE_BUCKET_NAME} --metadata CodebuildBuildId=${CODEBUILD_BUILD_ID}
+
+    finally:
+      - echo Build finished on `date`
+  post_build:
+    commands:
+      - echo Post Build started on `date`
+    finally:
+      - echo Post Build finished on `date`
