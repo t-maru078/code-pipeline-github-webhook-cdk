@@ -112,3 +112,5 @@ bash scripts/deploy-pipeline.sh
 - GitHub 上でこの Pipeline の結果が表示されるようになりますが、表示内容は必要最低限のものしか設定しておりませんのでご注意ください。実際の開発で使用する場合は GitHub Checks API に送信している内容をカスタマイズする必要があります。
 
 - 今回の要件では Lambda で構築した GitHub App は AWS 上のリソースからのみ使用するため Lambda Function URL の auth type を AWS_IAM で設定しました。GitHub からの Webhook を GitHub App で受け取る場合などはこのまま使用できませんのでご注意ください。
+
+cont1
